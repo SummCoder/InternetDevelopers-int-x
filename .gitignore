@@ -51,8 +51,8 @@ docs/
 html/
 
 # 3) 所有 Markdown 文档（*.md）
-*.md
-**/*.md
+# *.md
+# **/*.md
 
 # ===== 项目子模块常见忽略（冗余但更稳妥） =====
 web-admin/node_modules/
