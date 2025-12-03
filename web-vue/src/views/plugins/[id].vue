@@ -160,7 +160,7 @@ import {
   Edit,
   Document
 } from '@element-plus/icons-vue'
-import { getPluginById, updatePlugin } from '@/api/plugin'
+import { getPlugin, updatePlugin } from '@/api/plugin'
 
 const router = useRouter()
 const route = useRoute()
@@ -187,7 +187,8 @@ function goBack() {
 async function loadPlugin() {
   loading.value = true
   try {
-    const data = await getPluginById(pluginId)
+    const response = await getPlugin(Number(pluginId))
+    const data = (response.data || response) as any
     plugin.value = data
     
     // 填充表单
@@ -223,12 +224,12 @@ async function handleSave() {
 
   saving.value = true
   try {
-    await updatePlugin(pluginId, {
+    await updatePlugin(Number(pluginId), {
       name: form.name,
       description: form.description,
-      type: form.type,
       status: form.enabled ? 'enabled' : 'disabled',
-      openapiSpec: form.openapiSpec ? JSON.parse(form.openapiSpec) : null
+      openapiSpec: form.openapiSpec ? JSON.parse(form.openapiSpec) : null,
+      config: ''
     })
     ElMessage.success('✓ 保存成功')
   } catch (error) {

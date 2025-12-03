@@ -104,11 +104,16 @@ watch(() => props.modelValue, (val) => {
   visible.value = val
   if (val && props.agent) {
     isEdit.value = true
+    const modelConfig = props.agent.modelConfig || formData.value.model
     formData.value = {
       name: props.agent.name,
       description: props.agent.description || '',
       systemPrompt: props.agent.systemPrompt || '',
-      model: { ...(props.agent.modelConfig || formData.value.model) }
+      model: {
+        provider: modelConfig.provider,
+        model: modelConfig.model,
+        temperature: modelConfig.temperature ?? 0.7
+      }
     }
   } else {
     isEdit.value = false
