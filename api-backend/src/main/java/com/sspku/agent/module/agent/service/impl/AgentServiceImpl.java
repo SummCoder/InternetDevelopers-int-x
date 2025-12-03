@@ -1,6 +1,5 @@
 package com.sspku.agent.module.agent.service.impl;
 
-import com.alibaba.cloud.ai.dashscope.chat.DashScopeChatOptions;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.sspku.agent.common.api.PageResponse;
@@ -22,6 +21,7 @@ import com.sspku.agent.module.agent.service.AgentService;
 import com.sspku.agent.module.agent.vo.AgentTestResponse;
 import com.sspku.agent.module.agent.vo.AgentVO;
 import com.sspku.agent.module.user.entity.User;
+import com.sspku.agent.module.agent.tool.PluginToolFactory;
 import lombok.RequiredArgsConstructor;
 import org.springframework.ai.chat.messages.SystemMessage;
 import org.springframework.ai.chat.messages.UserMessage;
@@ -29,6 +29,7 @@ import org.springframework.ai.chat.model.ChatModel;
 import org.springframework.ai.chat.prompt.Prompt;
 import org.springframework.ai.chat.model.ChatResponse;
 import org.springframework.ai.chat.messages.Message;
+import org.springframework.ai.tool.ToolCallback;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.CollectionUtils;
@@ -52,6 +53,7 @@ public class AgentServiceImpl implements AgentService {
     private final UserAgentRelationMapper userAgentRelationMapper;
     private final UserPluginRelationMapper userPluginRelationMapper;
     private final ObjectMapper objectMapper;
+    private final PluginToolFactory pluginToolFactory;
 
     // Spring AI 聊天模型（使用自动配置的默认模型）
     private final ChatModel chatModel;
@@ -239,13 +241,22 @@ public class AgentServiceImpl implements AgentService {
             // 添加用户问题
             messages.add(new UserMessage(request.getQuestion()));
 
+            // 获取绑定的插件并转换为 ToolCallback
+            List<Long> pluginIds = agentPluginRelationMapper.selectPluginIdsByAgentId(id);
+            List<ToolCallback> toolCallbacks = pluginToolFactory.createToolCallbacks(pluginIds);
+
             // 使用智能体配置的参数创建运行时 ChatOptions
-            DashScopeChatOptions options = com.alibaba.cloud.ai.dashscope.chat.DashScopeChatOptions
+            var optionsBuilder = org.springframework.ai.model.tool.ToolCallingChatOptions
                     .builder()
-                    .withModel(modelConfig.getModel())
-                    .withTemperature(modelConfig.getTemperature() != null ? modelConfig.getTemperature() : 0.7)
-                    .withTopP(modelConfig.getTopP() != null ? modelConfig.getTopP() : 0.9)
-                    .build();
+                    .model(modelConfig.getModel())
+                    .temperature(modelConfig.getTemperature() != null ? modelConfig.getTemperature() : 0.7)
+                    .topP(modelConfig.getTopP() != null ? modelConfig.getTopP() : 0.9);
+
+            if (!CollectionUtils.isEmpty(toolCallbacks)) {
+                optionsBuilder.toolCallbacks(toolCallbacks);
+            }
+
+            var options = optionsBuilder.build();
 
             // 创建带有选项的 Prompt
             Prompt prompt = new Prompt(messages, options);

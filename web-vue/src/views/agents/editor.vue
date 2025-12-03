@@ -109,6 +109,34 @@
             </div>
 
             <div class="section-divider">
+              <span>插件</span>
+            </div>
+
+            <div class="form-group">
+              <el-form-item label="绑定插件">
+                <el-select
+                  v-model="formData.pluginIds"
+                  multiple
+                  placeholder="请选择要绑定的插件"
+                  collapse-tags
+                  collapse-tags-tooltip
+                >
+                  <el-option
+                    v-for="plugin in plugins"
+                    :key="plugin.id"
+                    :label="plugin.name"
+                    :value="plugin.id"
+                  >
+                    <span style="float: left">{{ plugin.name }}</span>
+                    <span style="float: right; color: var(--el-text-color-secondary); font-size: 13px">
+                      {{ plugin.type === 'builtin' ? '内置' : '自定义' }}
+                    </span>
+                  </el-option>
+                </el-select>
+              </el-form-item>
+            </div>
+
+            <div class="section-divider">
               <span>对话</span>
             </div>
 
@@ -177,6 +205,8 @@ import {
 } from '@element-plus/icons-vue'
 import { getAgent, createAgent, updateAgent, testAgent } from '@/api/agent'
 import type { AgentCreateRequest, AgentUpdateRequest, AgentTestRequest } from '@/api/agent'
+import { listPlugins } from '@/api/plugin'
+import type { Plugin } from '@/api/plugin'
 
 const router = useRouter()
 const route = useRoute()
@@ -193,6 +223,7 @@ const chatMessages = ref<Array<{
   timestamp: number
 }>>([])
 const chatContainer = ref<HTMLDivElement | null>(null)
+const plugins = ref<Plugin[]>([])
 
 const formData = reactive({
   name: '',
@@ -202,11 +233,22 @@ const formData = reactive({
   temperature: 0.7,
   maxTokens: 2000,
   topP: 0.9,
-  greeting: '你好！我是你的AI助手，有什么可以帮助你的吗？'
+  greeting: '你好！我是你的AI助手，有什么可以帮助你的吗？',
+  pluginIds: [] as number[]
 })
 
 function goBack() {
   router.push('/agents')
+}
+
+async function loadPlugins() {
+  try {
+    const response = await listPlugins({ status: 'enabled' })
+    plugins.value = response.data || response as any
+  } catch (error) {
+    console.error('加载插件列表失败', error)
+    ElMessage.error('加载插件列表失败')
+  }
 }
 
 async function saveDraft() {
@@ -228,7 +270,8 @@ async function saveDraft() {
         temperature: formData.temperature,
         maxTokens: formData.maxTokens,
         topP: formData.topP
-      }
+      },
+      pluginIds: formData.pluginIds
     }
     
     if (isEdit.value && agentId.value) {
@@ -275,7 +318,8 @@ async function publishAgent() {
         temperature: formData.temperature,
         maxTokens: formData.maxTokens,
         topP: formData.topP
-      }
+      },
+      pluginIds: formData.pluginIds
     }
     
     if (isEdit.value && agentId.value) {
@@ -436,6 +480,7 @@ function formatTime(timestamp: number) {
 }
 
 onMounted(async () => {
+  await loadPlugins()
   const routeAgentId = route.params.id
   // 只有当ID存在且是有效数字时才进入编辑模式
   if (routeAgentId && !isNaN(Number(routeAgentId))) {
@@ -454,6 +499,7 @@ onMounted(async () => {
         formData.temperature = agent.modelConfig?.temperature ?? 0.7
         formData.maxTokens = agent.modelConfig?.maxTokens ?? 2000
         formData.topP = agent.modelConfig?.topP ?? 0.9
+        formData.pluginIds = agent.pluginIds || []
         
         // 添加开场白到聊天
         if (formData.greeting) {
