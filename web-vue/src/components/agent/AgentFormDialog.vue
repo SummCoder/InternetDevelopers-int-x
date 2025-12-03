@@ -108,7 +108,11 @@ watch(() => props.modelValue, (val) => {
       name: props.agent.name,
       description: props.agent.description || '',
       systemPrompt: props.agent.systemPrompt || '',
-      model: { ...(props.agent.modelConfig || formData.value.model) }
+      model: {
+        provider: props.agent.modelConfig?.provider || formData.value.model.provider,
+        model: props.agent.modelConfig?.model || formData.value.model.model,
+        temperature: props.agent.modelConfig?.temperature ?? formData.value.model.temperature
+      }
     }
   } else {
     isEdit.value = false

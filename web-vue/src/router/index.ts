@@ -40,12 +40,6 @@ const routes: RouteRecordRaw[] = [
         name: 'Plugins',
         component: () => import('@/views/plugins/index.vue'),
         meta: { title: '插件', requiresAuth: true }
-      },
-      {
-        path: 'plugins/:id',
-        name: 'PluginDetail',
-        component: () => import('@/views/plugins/[id].vue'),
-        meta: { title: '插件详情', requiresAuth: true }
       }
     ]
   },

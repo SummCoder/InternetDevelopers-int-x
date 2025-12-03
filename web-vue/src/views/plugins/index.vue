@@ -106,7 +106,6 @@
 
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
-import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Plus, Connection, Close, MagicStick } from '@element-plus/icons-vue'
 import PageHeader from '@/components/common/PageHeader.vue'
@@ -121,8 +120,6 @@ import {
   enablePlugin,
   disablePlugin
 } from '@/api/plugin'
-
-const router = useRouter()
 
 interface Plugin {
   id: number
@@ -174,7 +171,7 @@ async function loadPlugins() {
 }
 
 function handleView(plugin: Plugin) {
-  router.push(`/plugins/${plugin.id}`)
+  handleEdit(plugin)
 }
 
 function handleEdit(plugin: Plugin) {
