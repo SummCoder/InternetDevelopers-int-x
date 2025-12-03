@@ -43,6 +43,10 @@
         WHERE id = #{id}
     </update>
 
+    <delete id="deleteById">
+        DELETE FROM agent WHERE id = #{id}
+    </delete>
+
     <select id="selectById" resultMap="AgentResultMap">
         SELECT * FROM agent WHERE id = #{id}
     </select>

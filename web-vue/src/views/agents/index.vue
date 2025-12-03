@@ -44,7 +44,7 @@ import GridContainer from '@/components/common/GridContainer.vue'
 import Card from '@/components/common/Card.vue'
 import AgentCard from '@/components/agent/AgentCard.vue'
 import AgentFormDialog from '@/components/agent/AgentFormDialog.vue'
-import { fetchAgents, createAgent, updateAgent, publishAgent as publishAgentAPI, unpublishAgent as unpublishAgentAPI, type AgentVO } from '@/api/agent'
+import { fetchAgents, createAgent, updateAgent, deleteAgent, publishAgent as publishAgentAPI, unpublishAgent as unpublishAgentAPI, type AgentVO } from '@/api/agent'
 
 const router = useRouter()
 const agents = ref<AgentVO[]>([])
@@ -124,15 +124,21 @@ async function handlePublish(agent: AgentVO) {
   }
 }
 
-function handleDelete(_agent: AgentVO) {
+function handleDelete(agent: AgentVO) {
   ElMessageBox.confirm('确定要删除该智能体吗？', '提示', {
     confirmButtonText: '确定',
     cancelButtonText: '取消',
     type: 'warning'
   })
-    .then(() => {
-      ElMessage.success('删除成功')
-      loadAgents()
+    .then(async () => {
+      try {
+        await deleteAgent(agent.id)
+        ElMessage.success('删除成功')
+        await loadAgents()
+      } catch (error) {
+        console.error('删除失败', error)
+        ElMessage.error('删除失败')
+      }
     })
     .catch(() => {})
 }

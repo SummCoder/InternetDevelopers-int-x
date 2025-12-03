@@ -22,8 +22,10 @@ public interface AgentService {
     PageResponse<AgentVO> listAgents(AgentListQuery query);
 
     void publishAgent(Long id);
-    
+
     void unpublishAgent(Long id);
+
+    void deleteAgent(Long id);
 
     AgentTestResponse testAgent(Long id, AgentTestRequest request);
 }

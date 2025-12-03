@@ -65,26 +65,27 @@
             </div>
 
             <div class="form-group">
-              <el-form-item label="模型">
+              <el-form-item label="模型名称">
                 <el-select v-model="formData.model" placeholder="选择模型">
-                  <el-option label="GPT-3.5 Turbo" value="gpt-3.5-turbo" />
-                  <el-option label="GPT-4" value="gpt-4" />
-                  <el-option label="Claude-3" value="claude-3" />
+                  <el-option label="qwen-max-latest" value="qwen-max-latest" />
+                  <el-option label="qwen-max-2025-01-25" value="qwen-max-2025-01-25" />
+                  <el-option label="qwen-max-0919" value="qwen-max-0919" />
+                  <el-option label="qwen-max-0428" value="qwen-max-0428" />
                 </el-select>
               </el-form-item>
 
-              <el-form-item label="温度">
+              <el-form-item label="温度参数 (Temperature)">
                 <el-slider
                   v-model="formData.temperature"
                   :min="0"
-                  :max="2"
+                  :max="1"
                   :step="0.1"
                   show-input
                   :show-input-controls="false"
                 />
               </el-form-item>
 
-              <el-form-item label="最大长度">
+              <el-form-item label="最大令牌数 (Max Tokens)">
                 <el-input-number
                   v-model="formData.maxTokens"
                   :min="100"
@@ -92,6 +93,17 @@
                   :step="100"
                   controls-position="right"
                   style="width: 100%"
+                />
+              </el-form-item>
+
+              <el-form-item label="Top-P 采样">
+                <el-slider
+                  v-model="formData.topP"
+                  :min="0"
+                  :max="1"
+                  :step="0.1"
+                  show-input
+                  :show-input-controls="false"
                 />
               </el-form-item>
             </div>
@@ -163,8 +175,8 @@ import {
   ArrowLeft,
   InfoFilled
 } from '@element-plus/icons-vue'
-import { getAgent, createAgent, updateAgent } from '@/api/agent'
-import type { AgentCreateRequest, AgentUpdateRequest } from '@/api/agent'
+import { getAgent, createAgent, updateAgent, testAgent } from '@/api/agent'
+import type { AgentCreateRequest, AgentUpdateRequest, AgentTestRequest } from '@/api/agent'
 
 const router = useRouter()
 const route = useRoute()
@@ -186,9 +198,10 @@ const formData = reactive({
   name: '',
   description: '',
   systemPrompt: '',
-  model: 'gpt-3.5-turbo',
+  model: 'qwen-max-latest',
   temperature: 0.7,
   maxTokens: 2000,
+  topP: 0.9,
   greeting: '你好！我是你的AI助手，有什么可以帮助你的吗？'
 })
 
@@ -210,10 +223,11 @@ async function saveDraft() {
       systemPrompt: formData.systemPrompt,
       userPromptTemplate: '',
       modelConfig: {
-        provider: 'openai',
+        provider: 'dashscope',
         model: formData.model,
         temperature: formData.temperature,
-        maxTokens: formData.maxTokens
+        maxTokens: formData.maxTokens,
+        topP: formData.topP
       }
     }
     
@@ -256,10 +270,11 @@ async function publishAgent() {
       systemPrompt: formData.systemPrompt,
       userPromptTemplate: '',
       modelConfig: {
-        provider: 'openai',
+        provider: 'dashscope',
         model: formData.model,
         temperature: formData.temperature,
-        maxTokens: formData.maxTokens
+        maxTokens: formData.maxTokens,
+        topP: formData.topP
       }
     }
     
@@ -326,23 +341,49 @@ async function sendMessage() {
   
   isGenerating.value = true
   
-  // 模拟AI回复 - 根据系统提示词生成回复
-  setTimeout(() => {
-    const responses = generateMockResponse(userInput, formData.systemPrompt)
-    
-    const assistantMessage = {
+  try {
+    // 如果是编辑模式且有智能体ID，调用后端API
+    if (isEdit.value && agentId.value) {
+      const testRequest: AgentTestRequest = {
+        question: userInput
+      }
+      
+      const response = await testAgent(agentId.value, testRequest)
+      
+      const assistantMessage = {
+        role: 'assistant' as const,
+        content: response.reply,
+        timestamp: Date.now()
+      }
+      
+      chatMessages.value.push(assistantMessage)
+    } else {
+      // 新建模式下的模拟回复
+      const response = generateMockResponse(userInput, formData.systemPrompt)
+      
+      const assistantMessage = {
+        role: 'assistant' as const,
+        content: response,
+        timestamp: Date.now()
+      }
+      
+      chatMessages.value.push(assistantMessage)
+    }
+  } catch (error) {
+    console.error('发送消息失败', error)
+    const errorMessage = {
       role: 'assistant' as const,
-      content: responses,
+      content: '抱歉，消息发送失败，请稍后重试。',
       timestamp: Date.now()
     }
-    
-    chatMessages.value.push(assistantMessage)
+    chatMessages.value.push(errorMessage)
+  } finally {
     isGenerating.value = false
     
     nextTick(() => {
       scrollToBottom()
     })
-  }, 800)
+  }
 }
 
 function generateMockResponse(userInput: string, systemPrompt: string): string {
@@ -409,9 +450,10 @@ onMounted(async () => {
         formData.name = agent.name || ''
         formData.description = agent.description || ''
         formData.systemPrompt = agent.systemPrompt || ''
-        formData.model = agent.modelConfig?.model || 'gpt-3.5-turbo'
+        formData.model = agent.modelConfig?.model || 'qwen-max-latest'
         formData.temperature = agent.modelConfig?.temperature ?? 0.7
         formData.maxTokens = agent.modelConfig?.maxTokens ?? 2000
+        formData.topP = agent.modelConfig?.topP ?? 0.9
         
         // 添加开场白到聊天
         if (formData.greeting) {
@@ -584,21 +626,28 @@ onMounted(async () => {
 }
 
 /* 右侧：试运行 */
+.right-column {
+  overflow: hidden; /* 保持父容器不滚动 */
+}
+
 .chat-container {
   flex: 1;
   display: flex;
   flex-direction: column;
   background: #f8f9fa;
+  height: 100%; /* 确保占满父容器高度 */
+  min-height: 0; /* 允许 flex 子元素正确收缩 */
 }
 
 .chat-messages {
   flex: 1;
   padding: var(--spacing-lg);
-  overflow-y: auto;
+  overflow-y: auto; /* 启用垂直滚动 */
   display: flex;
   flex-direction: column;
   gap: var(--spacing-lg);
   background: #f8f9fa;
+  min-height: 0; /* 允许滚动 */
 }
 
 .message {

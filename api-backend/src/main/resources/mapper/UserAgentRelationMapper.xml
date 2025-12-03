@@ -28,6 +28,10 @@
         LIMIT 1
     </select>
 
+    <delete id="deleteByAgentId">
+        DELETE FROM user_agent_rel WHERE agent_id = #{agentId}
+    </delete>
+
     <select id="selectByAgentIds" resultMap="UserAgentRelationMap">
         SELECT id, user_id, agent_id, relation_type, created_at, updated_at
         FROM user_agent_rel

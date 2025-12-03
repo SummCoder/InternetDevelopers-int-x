@@ -26,5 +26,8 @@ public class ModelConfigRequest {
     @Min(value = 32, message = "maxTokens不能小于32")
     @Max(value = 4096, message = "maxTokens不能超过4096")
     private Integer maxTokens = 2048;
-}
 
+    @DecimalMin(value = "0.0", message = "topP不能小于0")
+    @DecimalMax(value = "1.0", message = "topP不能大于1")
+    private Double topP = 0.9;
+}

@@ -21,10 +21,11 @@ public interface AgentMapper {
     long countByCondition(@Param("keyword") String keyword, @Param("status") String status);
 
     List<Agent> selectPageByCondition(@Param("keyword") String keyword,
-                                      @Param("status") String status,
-                                      @Param("limit") int limit,
-                                      @Param("offset") int offset);
+            @Param("status") String status,
+            @Param("limit") int limit,
+            @Param("offset") int offset);
 
     int updateStatus(Agent agent);
-}
 
+    int deleteById(@Param("id") Long id);
+}

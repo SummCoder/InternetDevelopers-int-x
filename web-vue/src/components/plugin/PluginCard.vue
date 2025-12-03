@@ -37,11 +37,13 @@ const GRADIENTS = {
 }
 
 interface Plugin {
-  id: string
+  id: number
   name: string
   description?: string
   type: 'builtin' | 'custom'
   status: 'enabled' | 'disabled'
+  openapiSpec: string
+  config: string
   createdAt?: string
 }
 
@@ -57,20 +59,12 @@ defineEmits<{
 }>()
 
 const metaItems = computed(() => [
-  { icon: Grid, label: props.plugin.type === 'builtin' ? '内置' : '自定义' },
-  { icon: Clock, label: formatDate(props.plugin.createdAt) }
+  { icon: Clock, label: formatDate(props.plugin.createdAt) },
+  { icon: Grid, label: props.plugin.status === 'enabled' ? '已启用' : '已禁用' },
+  { icon: Grid, label: props.plugin.type === 'builtin' ? '内置' : '自定义' }
 ])
 
-const tagItems = computed(() => [
-  {
-    label: props.plugin.status === 'enabled' ? '已启用' : '已禁用',
-    type: props.plugin.status === 'enabled' ? 'success' : 'info' as const
-  },
-  {
-    label: props.plugin.type === 'builtin' ? '内置' : '自定义',
-    type: props.plugin.type === 'builtin' ? 'success' : 'info' as const
-  }
-])
+const tagItems = computed(() => [])
 
 function formatDate(date?: string) {
   if (!date) return '未知'

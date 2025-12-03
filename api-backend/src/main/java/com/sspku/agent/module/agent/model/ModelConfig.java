@@ -11,5 +11,5 @@ public class ModelConfig {
     private String model;
     private Double temperature;
     private Integer maxTokens;
+    private Double topP;
 }
-

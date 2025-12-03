@@ -35,6 +35,12 @@ public class AgentController {
         return ApiResponse.ok("智能体更新成功", null);
     }
 
+    @DeleteMapping("/{id}")
+    public ApiResponse<Void> deleteAgent(@PathVariable Long id) {
+        agentService.deleteAgent(id);
+        return ApiResponse.ok("智能体删除成功", null);
+    }
+
     @GetMapping("/{id}")
     public ApiResponse<AgentVO> getAgent(@PathVariable Long id) {
         return ApiResponse.ok(agentService.getAgent(id));

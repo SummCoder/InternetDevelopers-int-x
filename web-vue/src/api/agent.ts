@@ -5,6 +5,7 @@ export interface ModelConfig {
   model: string
   temperature?: number
   maxTokens?: number
+  topP?: number
 }
 
 export interface AgentCreateRequest {
@@ -71,6 +72,10 @@ export const createAgent = (data: AgentCreateRequest): Promise<number> => {
 
 export const updateAgent = (id: number, data: AgentUpdateRequest): Promise<void> => {
   return http.put(`/api/agents/${id}`, data)
+}
+
+export const deleteAgent = (id: number): Promise<void> => {
+  return http.delete(`/api/agents/${id}`)
 }
 
 export const getAgent = (id: number): Promise<AgentVO> => {

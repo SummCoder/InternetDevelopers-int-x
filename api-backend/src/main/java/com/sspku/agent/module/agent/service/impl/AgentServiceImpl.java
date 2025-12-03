@@ -1,5 +1,6 @@
 package com.sspku.agent.module.agent.service.impl;
 
+import com.alibaba.cloud.ai.dashscope.chat.DashScopeChatOptions;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.sspku.agent.common.api.PageResponse;
@@ -22,6 +23,12 @@ import com.sspku.agent.module.agent.vo.AgentTestResponse;
 import com.sspku.agent.module.agent.vo.AgentVO;
 import com.sspku.agent.module.user.entity.User;
 import lombok.RequiredArgsConstructor;
+import org.springframework.ai.chat.messages.SystemMessage;
+import org.springframework.ai.chat.messages.UserMessage;
+import org.springframework.ai.chat.model.ChatModel;
+import org.springframework.ai.chat.prompt.Prompt;
+import org.springframework.ai.chat.model.ChatResponse;
+import org.springframework.ai.chat.messages.Message;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.CollectionUtils;
@@ -30,9 +37,7 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 
 import java.time.Instant;
-import java.util.Collections;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.stream.Collectors;
 
 /**
@@ -47,6 +52,9 @@ public class AgentServiceImpl implements AgentService {
     private final UserAgentRelationMapper userAgentRelationMapper;
     private final UserPluginRelationMapper userPluginRelationMapper;
     private final ObjectMapper objectMapper;
+
+    // Spring AI 聊天模型（使用自动配置的默认模型）
+    private final ChatModel chatModel;
 
     @Override
     @Transactional(rollbackFor = Exception.class)
@@ -189,20 +197,85 @@ public class AgentServiceImpl implements AgentService {
     }
 
     @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void deleteAgent(Long id) {
+        Agent agent = agentMapper.selectById(id);
+        if (agent == null) {
+            throw new BusinessException("智能体不存在");
+        }
+
+        // 删除关联的插件关系
+        agentPluginRelationMapper.deleteByAgentId(id);
+        // 删除用户关联关系
+        userAgentRelationMapper.deleteByAgentId(id);
+        // 删除智能体
+        agentMapper.deleteById(id);
+    }
+
+    @Override
     public AgentTestResponse testAgent(Long id, AgentTestRequest request) {
         Agent agent = agentMapper.selectById(id);
         if (agent == null) {
             throw new BusinessException("智能体不存在");
         }
+
+        // 解析模型配置
+        ModelConfig modelConfig = readModelConfig(agent.getModelConfig());
+        if (modelConfig == null || !StringUtils.hasText(modelConfig.getModel())) {
+            throw new BusinessException("智能体模型配置不完整");
+        }
+
         long start = Instant.now().toEpochMilli();
-        String reply = "[Mock Reply] " + request.getQuestion();
-        long elapsed = Instant.now().toEpochMilli() - start;
-        return AgentTestResponse.builder()
-                .reply(reply)
-                .elapsedMs(elapsed)
-                .promptTokens(request.getQuestion().length() / 4 + 1)
-                .completionTokens(reply.length() / 4 + 1)
-                .build();
+
+        try {
+            // 构建对话消息
+            List<Message> messages = new ArrayList<>();
+
+            // 添加系统提示词
+            if (StringUtils.hasText(agent.getSystemPrompt())) {
+                messages.add(new SystemMessage(agent.getSystemPrompt()));
+            }
+
+            // 添加用户问题
+            messages.add(new UserMessage(request.getQuestion()));
+
+            // 使用智能体配置的参数创建运行时 ChatOptions
+            DashScopeChatOptions options = com.alibaba.cloud.ai.dashscope.chat.DashScopeChatOptions
+                    .builder()
+                    .withModel(modelConfig.getModel())
+                    .withTemperature(modelConfig.getTemperature() != null ? modelConfig.getTemperature() : 0.7)
+                    .withTopP(modelConfig.getTopP() != null ? modelConfig.getTopP() : 0.9)
+                    .build();
+
+            // 创建带有选项的 Prompt
+            Prompt prompt = new Prompt(messages, options);
+
+            // 调用模型
+            ChatResponse response = chatModel.call(prompt);
+
+            // 提取回复内容
+            String reply = response.getResult().getOutput().getText();
+
+            long elapsed = Instant.now().toEpochMilli() - start;
+
+            // 提取 token 使用情况
+            Integer promptTokens = null;
+            Integer completionTokens = null;
+            if (response.getMetadata().getUsage() != null) {
+                promptTokens = response.getMetadata().getUsage().getPromptTokens();
+                completionTokens = response.getMetadata().getUsage().getCompletionTokens();
+            }
+
+            return AgentTestResponse.builder()
+                    .reply(reply)
+                    .elapsedMs(elapsed)
+                    .promptTokens(promptTokens != null ? promptTokens : request.getQuestion().length() / 4 + 1)
+                    .completionTokens(completionTokens != null ? completionTokens : reply.length() / 4 + 1)
+                    .build();
+
+        } catch (Exception e) {
+            throw new BusinessException("AI 模型调用失败: " + e.getMessage());
+        }
     }
 
     private void validateModelConfig(ModelConfigRequest modelConfig) {
@@ -223,6 +296,7 @@ public class AgentServiceImpl implements AgentService {
         config.setModel(modelConfigRequest.getModel());
         config.setTemperature(modelConfigRequest.getTemperature());
         config.setMaxTokens(modelConfigRequest.getMaxTokens());
+        config.setTopP(modelConfigRequest.getTopP());
         try {
             return objectMapper.writeValueAsString(config);
         } catch (JsonProcessingException e) {

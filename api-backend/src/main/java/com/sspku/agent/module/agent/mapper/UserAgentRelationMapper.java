@@ -16,5 +16,7 @@ public interface UserAgentRelationMapper {
 
     Long selectOwnerId(@Param("agentId") Long agentId);
 
+    void deleteByAgentId(@Param("agentId") Long agentId);
+
     List<UserAgentRelation> selectByAgentIds(@Param("agentIds") List<Long> agentIds);
 }
