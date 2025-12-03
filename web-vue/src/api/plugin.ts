@@ -2,7 +2,7 @@ import { http } from '@/utils/http'
 
 // 插件类型定义
 export interface Plugin {
-  id: number | string
+  id: number
   name: string
   type: 'builtin' | 'custom'
   status: 'enabled' | 'disabled'
@@ -21,7 +21,7 @@ export interface PluginExecuteParams {
 
 // 插件执行结果类型
 export interface PluginExecuteResult {
-  pluginId: number | string
+  pluginId: number
   functionName: string
   result: string
 }
@@ -32,7 +32,7 @@ export function listPlugins(params: Record<string, any> = {}) {
 }
 
 // 获取插件详情
-export function getPlugin(id: number | string) {
+export function getPlugin(id: number) {
   return http.get<Plugin>(`/api/plugin/${id}`)
 }
 
@@ -42,46 +42,26 @@ export function createPlugin(plugin: Omit<Plugin, 'id' | 'type' | 'status' | 'cr
 }
 
 // 更新插件
-export function updatePlugin(id: number | string, plugin: Omit<Plugin, 'id' | 'type' | 'createdAt' | 'updatedAt'>) {
+export function updatePlugin(id: number, plugin: Omit<Plugin, 'id' | 'type' | 'createdAt' | 'updatedAt'>) {
   return http.put<Plugin>(`/api/plugin/${id}`, plugin)
 }
 
 // 删除插件
-export function deletePlugin(id: number | string) {
+export function deletePlugin(id: number) {
   return http.delete(`/api/plugin/${id}`)
 }
 
 // 启用插件
-export function enablePlugin(id: number | string) {
+export function enablePlugin(id: number) {
   return http.post(`/api/plugin/${id}/enable`)
 }
 
 // 禁用插件
-export function disablePlugin(id: number | string) {
+export function disablePlugin(id: number) {
   return http.post(`/api/plugin/${id}/disable`)
 }
 
 // 执行插件函数
-export function executePlugin(id: number | string, data: PluginExecuteParams) {
+export function executePlugin(id: number, data: PluginExecuteParams) {
   return http.post<PluginExecuteResult>(`/api/plugin/${id}/execute`, data)
-}
-
-// 保存插件（兼容旧接口）
-export function savePlugin(plugin: Plugin) {
-  if (plugin.id) {
-    return updatePlugin(plugin.id, plugin)
-  } else {
-    return createPlugin(plugin)
-  }
-}
-
-// 切换插件状态（兼容旧接口）
-export function togglePlugin(id: number | string) {
-  return getPlugin(id).then(plugin => {
-    if (plugin.status === 'enabled') {
-      return disablePlugin(id)
-    } else {
-      return enablePlugin(id)
-    }
-  })
 }
